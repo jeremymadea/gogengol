@@ -1,0 +1,17 @@
+
+Rules are two (dead and live) 256-bit sequences. The current state of the cell
+dictates which of the two sequences to use. The 256 bit positions represent the
+256 different states for a cell's Moore neighborhood. The bit value dictates 
+the cell's next state. 
+
+By convention, the bit order for the neighborhood is as follows: 
+
+0 1 2 
+7 . 3
+6 5 4
+
+Example: 
+
+0 0 0 
+0 . 1 = 00011010  (LSB first) = 01011000 (MSB first) = 88
+1 0 1
