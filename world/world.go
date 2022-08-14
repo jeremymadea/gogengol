@@ -6,71 +6,73 @@ import (
 )
 
 type World struct {
-	w, h int
-	grid [][]byte
+	W, H int
+	Grid [][]byte
 }
 
 // Returns a new world with width w, height h, and (approximate) population
 // density pd.
 func New(w, h int, pd float64) *World {
-	w := new(World)
-	w.w = w
-	w.h = h
-	w.grid = make([][]byte, w)
-	for i := range w.grid {
-		w.grid[i] = make([]byte, h)
-		for j := range w.grid[i] {
-			if rand.Float32() < pd {
-				w.grid[i][j] = 1
+	wld := new(World)
+	wld.W = w
+	wld.H = h
+	wld.Grid = make([][]byte, w)
+	for i := range wld.Grid {
+		wld.Grid[i] = make([]byte, h)
+		for j := range wld.Grid[i] {
+			if rand.Float64() < pd {
+				wld.Grid[i][j] = 1
 			} else {
-				w.grid[i][j] = 0
+				wld.Grid[i][j] = 0
 			}
 		}
 	}
-    return w
+    return wld
 }
 
 // Returns a new empty world.
 func NewEmpty(w, h int) *World {
-	w := new(World)
-	w.w = w
-	w.h = h
-	w.grid = make([][]byte, w)
-	for i := range w.grid {
-		w.grid[i] = make([]byte, h)
+	wld := new(World)
+	wld.W = w
+	wld.H = h
+	wld.Grid = make([][]byte, w)
+	for i := range wld.Grid {
+		wld.Grid[i] = make([]byte, h)
 	}
-    return w
+    return wld
 }
 
 // Returns a new world with a circular patch of the given radius populated
 // with an approximate population density of pd.
 func NewPopPatch(w, h, radius int, pd float64) *World {
-	w := new(World)
-	w.w = w
-	w.h = h
-	cx := w / 2
-	cy := h / 2
-	r := radius
+	wld := new(World)
+	wld.W = w
+	wld.H = h
+	cx := float64(w / 2)
+	cy := float64(h / 2)
+	r := float64(radius)
 	if r > cx || r > cy {
-		r = int(math.Min(cx, cy))
+		r = math.Min(cx, cy)
 	}
 	r *= r // use radius squared for distance calculations.
-	w.grid = make([][]byte, w)
-	for i := range w.grid {
-		w.grid[i] = make([]byte, h)
-		for j := range w.grid[i] {
+	wld.Grid = make([][]byte, w)
+	for i := range wld.Grid {
+		wld.Grid[i] = make([]byte, h)
+		for j := range wld.Grid[i] {
 			// We don't care about actual distance, just relative distance so
 			// we can avoid square roots.
-			if (cx-i)*(cx-i)+(cy-j)*(cy-j) < r {
-				if rand.Float32() < pd {
-					w.grid[i][j] = 1
+            cxf := cx - float64(i)
+            cyf := cy - float64(j)
+			if cxf*cxf+cyf*cyf < r {
+				if rand.Float64() < pd {
+					wld.Grid[i][j] = 1
 				} else {
-					w.grid[i][j] = 0
+					wld.Grid[i][j] = 0
 				}
 			}
 		}
 	}
-	return w
+	return wld
 }
 
 func GetHood(w *World, x, y int) byte {
@@ -79,32 +81,32 @@ func GetHood(w *World, x, y int) byte {
 	Lx := x - 1
 	Hy := y + 1
 	Hx := x + 1
-	if Hx >= w.w {
+	if Hx >= w.W {
 		Hx = 0
 	}
-	if Hy >= w.h {
+	if Hy >= w.H {
 		Hy = 0
 	}
 	if Lx <= 0 {
-		Lx = w.w - 1
+		Lx = w.W - 1
 	}
 	if Ly <= 0 {
-		Ly = w.h - 1
+		Ly = w.H - 1
 	}
-	hood |= w.grid[Lx][Ly] & 1
+	hood |= w.Grid[Lx][Ly] & 1
 	hood <<= 1
-	hood |= w.grid[x][Ly] & 1
+	hood |= w.Grid[x][Ly] & 1
 	hood <<= 1
-	hood |= w.grid[Hx][Ly] & 1
+	hood |= w.Grid[Hx][Ly] & 1
 	hood <<= 1
-	hood |= w.grid[Hx][y] & 1
+	hood |= w.Grid[Hx][y] & 1
 	hood <<= 1
-	hood |= w.grid[Hx][Hy] & 1
+	hood |= w.Grid[Hx][Hy] & 1
 	hood <<= 1
-	hood |= w.grid[x][Hy] & 1
+	hood |= w.Grid[x][Hy] & 1
 	hood <<= 1
-	hood |= w.grid[Lx][Hy] & 1
+	hood |= w.Grid[Lx][Hy] & 1
 	hood <<= 1
-	hood |= w.grid[Lx][y] & 1
+	hood |= w.Grid[Lx][y] & 1
 	return hood
 }
