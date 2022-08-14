@@ -1,0 +1,33 @@
+package rules
+
+import (
+    "fmt"
+    "math/rand"
+    "strings"
+)
+
+type Rule struct {
+    dead [256]byte
+    live [256]byte
+}
+
+func (r Rule) String() string {
+     var b strings.Builder
+     b.WriteString("    \"A\": \"")
+     for i := range r.dead {
+         fmt.Fprintf(&b, "%d", r.dead[i])
+     }
+     b.WriteString("\"\n    \"B\": \"")
+     for i := range r.live {
+         fmt.Fprintf(&b, "%d", r.live[i])
+     }
+     b.WriteString("\"\n")
+     return b.String()
+}
+
+func NewRandomRule() Rule {
+    r := Rule{}
+    for i := range r.dead { r.dead[i] = byte(rand.Int() & 1) }
+    for i := range r.live { r.live[i] = byte(rand.Int() & 1) }
+    return r
+}
