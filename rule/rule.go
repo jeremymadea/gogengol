@@ -30,7 +30,7 @@ func (r *Rule) String() string {
     b.WriteString("    \"comment\": \"")
     b.WriteString(r.Comment)
     b.WriteString("\"\n")
-	b.WriteString("}\n")
+	b.WriteString("}")
 	return b.String()
 }
 

@@ -1,13 +1,33 @@
+// Tool for automated search of non-isotropic GOL-like CAs for interesting 
+// specimens. 
 package main
 
 import (
+    "flag"
+    "fmt"
     "github.com/montanaflynn/stats"
     "gogengol/rule"
     "gogengol/world"
-    "fmt"
     "math/rand"
+    "os"
     "time"
 )
+
+type RunParams struct {
+    nrules uint
+    nruns uint
+    ngens uint
+    rdd float64
+    rdl float64
+    neatness_threshold float64
+    fh *os.File
+}
+
+func check(err error) {
+    if err != nil {
+        panic(err)
+    }
+}
 
 func apply(r *rule.Rule, w, buf *world.World) float64 {
     livecells := 0.0
@@ -31,42 +51,44 @@ func TheOriginal() *rule.Rule {
     return r
 }
 
-func main() {
+func run(p RunParams) int {
     neat := 0.0
-    nrules := 100
-    nruns  := 20
-    ngens  := 200
-    dens := make([]float64, ngens) // Storage for pop densities over a run. 
+    nfound := 0
 
-    means := make([]float64, nruns)
-    stdvs := make([]float64, nruns)
-    corrs := make([]float64, nruns)
-    meansb := make([]float64, nruns)
-    stdvsb := make([]float64, nruns)
-    corrsb := make([]float64, nruns)
+    rdd := p.rdd
+    rdl := p.rdl
+    //rdd := rand.Float64()/2 + 0.25
+    //rdl := rand.Float64()/2 + 0.25
 
-    line := make([]float64, ngens)
-    for i:=0;i < ngens; i++ {
+    dens := make([]float64, p.ngens) // Storage for pop densities over a run. 
+    means := make([]float64, p.nruns)
+    stdvs := make([]float64, p.nruns)
+    corrs := make([]float64, p.nruns)
+    meansb := make([]float64, p.nruns)
+    stdvsb := make([]float64, p.nruns)
+    corrsb := make([]float64, p.nruns)
+
+    line := make([]float64, p.ngens)
+    for i:=0;i < int(p.ngens); i++ {
         line[i] = float64(i)
     }
 
-    rand.Seed(time.Now().UnixNano())
-    for i:=0;i < nrules;i++ { // rule loop
-        //rdd := rand.Float64()/2 + 0.25
-        //rdl := rand.Float64()/2 + 0.25
-        rdd := 0.21875  // Original GOL densities. 
-        rdl := 0.32815
+    for i:=0;i < int(p.nrules);i++ { // rule loop
+        if p.rdd <= 0.0 {
+            rdd = rand.Float64()
+        }
+        if p.rdl <= 0.0 {
+            rdl = rand.Float64()
+        }
+
         r := rule.NewRandom(rdd, rdl)
         //r := TheOriginal()
         neat = 0.0
-//        fmt.Println()
-//        fmt.Println("----------------------------------------")
-//        fmt.Println(" Rule Density: rdd: ", rdd, " rdl: ", rdl);
 
-        for j:=0;j < nruns;j++ { // run loop
+        for j:=0;j < int(p.nruns);j++ { // run loop
             w := world.NewPopPatch(100,100, 20, rand.Float64()*.8+0.1);
             wbuf := world.NewEmpty(100,100);
-            for i:=0;i < ngens;i++ { // generation loop
+            for i:=0;i < int(p.ngens);i++ { // generation loop
                 dens[i] = apply(r, w, wbuf)
                 w, wbuf = wbuf, w
             }
@@ -96,7 +118,8 @@ func main() {
         corrshiB, _ := stats.Max(corrsb)
 
         neat = (corrshiB - corrsloB) / 2
-        if neat > 0.74 {
+        if neat > p.neatness_threshold {
+            nfound++
             fmt.Println("Mean A: ", meana, " Mean B: ", meanb)
             fmt.Println("Stdev ALL min: ", stdvlo, " max: ", stdvhi)
             fmt.Println("Stdev 1/2 min: ", stdvloB, " max: ", stdvhiB)
@@ -104,8 +127,67 @@ func main() {
             fmt.Println("Corr 1/2 min: ", corrsloB, " max: ", corrshiB)
             fmt.Println("Neat: ", neat)
             r.Comment = fmt.Sprintf("rdd:%f rdl:%f neat:%f", rdd, rdl, neat)
-            fmt.Println(r)
+            if nfound > 1 {
+                p.fh.WriteString(",")
+            }
+            p.fh.WriteString("\n" + fmt.Sprint(r))
         }
-
     }
+    return nfound
+}
+
+func main() {
+    rand.Seed(time.Now().UnixNano())
+
+    var nrules uint = 100
+    flag.UintVar(&nrules, "rules", nrules, "The number of rulesets to try.")
+    var nruns uint = 20
+    flag.UintVar(&nruns, "runs", nruns, "The number of runs for each ruleset.")
+    var ngens uint = 200
+    flag.UintVar(&ngens, "gens", ngens, "The number of generations per run.")
+
+    outfn := "output.json"
+	flag.StringVar(&outfn, "o", outfn, "Set the output file.")
+
+    rdd := 0.21875  // Original GOL densities. 
+    rdl := 0.32815
+    flag.Float64Var(&rdd, "rdd", rdd, "Rule density for dead cells.")
+    flag.Float64Var(&rdl, "rdl", rdl, "Rule density for live cells.")
+
+    neat := 0.74
+    flag.Float64Var(&neat, "neat", neat, "Neatness threshold.")
+
+    flag.Parse()
+
+    var params RunParams
+
+    if _, err := os.Stat(outfn); err == nil {
+        fmt.Println("File already exists: " + outfn)
+        os.Exit(1)
+    }
+
+    fh, err := os.Create(outfn)
+    check(err)
+
+    _, err = fh.WriteString("[\n")
+    check(err)
+
+    params.nrules = nrules
+    params.nruns = nruns
+    params.ngens = ngens
+    params.rdd = rdd
+    params.rdl = rdl
+    params.neatness_threshold = neat
+    params.fh = fh
+
+    nfound := run(params)
+
+    _, err = fh.WriteString("\n]\n")
+    check(err)
+
+    fh.Sync()
+    fh.Close()
+    fmt.Println("Found", nfound, "neat rulesets.")
+    fmt.Println("Output written to " + outfn + ".")
+
 }
