@@ -1,0 +1,4 @@
+* Stability checking
+* Check for 0 live cells in 2 consecutive gens
+* DB support
+* png thumbnails? 
